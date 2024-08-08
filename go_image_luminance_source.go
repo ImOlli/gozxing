@@ -54,20 +54,8 @@ func NewLuminanceSourceFromImage(img image.Image) LuminanceSource {
 	default:
 		for y := rect.Min.Y; y < rect.Max.Y; y++ {
 			for x := rect.Min.X; x < rect.Max.X; x++ {
-				p := img.(*image.RGBA)
-				i := p.PixOffset(x, y)
-				s := p.Pix[i : i+4 : i+4]
-				
-				r := uint32(s[0])
-				g := uint32(s[1])
-				b := uint32(s[2])
-				a := uint32(s[3])
-				r = (r << 8) | r
-				g = (g << 8) | g
-				b = (b << 8) | b
-				a = (a << 8) | a
-
-				lum := (r + 2*g + b) * 255 / divisor
+				r, g, b, a := img.At(x, y).RGBA()
+				lum := (r + 2*g + b) * 255 / (4 * 0xffff)
 				luminance[index] = byte((lum*a + (0xffff-a)*255) / 0xffff)
 				index++
 			}
