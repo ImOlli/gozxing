@@ -1,9 +1,8 @@
 package gozxing
 
 import (
-	"image"
-
 	errors "golang.org/x/xerrors"
+	"image"
 )
 
 func NewBinaryBitmapFromImage(img image.Image) (*BinaryBitmap, error) {
@@ -15,6 +14,8 @@ type GoImageLuminanceSource struct {
 	*RGBLuminanceSource
 }
 
+const divisor = 4 * 0xffff
+
 func NewLuminanceSourceFromImage(img image.Image) LuminanceSource {
 	rect := img.Bounds()
 	width := rect.Max.X - rect.Min.X
@@ -25,18 +26,22 @@ func NewLuminanceSourceFromImage(img image.Image) LuminanceSource {
 	// Optimize special cases.
 	switch img := img.(type) {
 	case *image.Gray:
-		for y := rect.Min.Y; y < rect.Max.Y; y++ {
-			for x := rect.Min.X; x < rect.Max.X; x++ {
-				y := img.GrayAt(x, y).Y
-				luminance[index] = y
-				index++
-			}
+		pix := img.Pix
+		for i := range pix {
+			luminance[i] = pix[i]
 		}
 	case image.RGBA64Image:
 		for y := rect.Min.Y; y < rect.Max.Y; y++ {
 			for x := rect.Min.X; x < rect.Max.X; x++ {
-				r, g, b, a := img.RGBA64At(x, y).RGBA()
-				lum := (r + 2*g + b) * 255 / (4 * 0xffff)
+				p := img.(*image.RGBA)
+				i := p.PixOffset(x, y)
+				s := p.Pix[i : i+4 : i+4]
+				r := uint32(s[0])
+				g := uint32(s[1])
+				b := uint32(s[2])
+				a := uint32(s[3])
+
+				lum := (r + 2*g + b) * 255 / divisor
 				luminance[index] = byte((lum*a + (0xffff-a)*255) / 0xffff)
 				index++
 			}
@@ -44,8 +49,15 @@ func NewLuminanceSourceFromImage(img image.Image) LuminanceSource {
 	default:
 		for y := rect.Min.Y; y < rect.Max.Y; y++ {
 			for x := rect.Min.X; x < rect.Max.X; x++ {
-				r, g, b, a := img.At(x, y).RGBA()
-				lum := (r + 2*g + b) * 255 / (4 * 0xffff)
+				p := img.(*image.RGBA)
+				i := p.PixOffset(x, y)
+				s := p.Pix[i : i+4 : i+4]
+				r := uint32(s[0])
+				g := uint32(s[1])
+				b := uint32(s[2])
+				a := uint32(s[3])
+
+				lum := (r + 2*g + b) * 255 / divisor
 				luminance[index] = byte((lum*a + (0xffff-a)*255) / 0xffff)
 				index++
 			}
